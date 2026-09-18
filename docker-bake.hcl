@@ -167,6 +167,36 @@ target "vllm-0271-rocm714-extras" {
   }
 }
 
+target "vllm-0280-rocm714-extras" {
+  # v0.28.0 extras build. The three RDNA robustness fixes that the v0.27.1
+  # extras build applies via VLLM_PATCH_FILE / VLLM_FINAL_PATCH_FILE (the
+  # rocm.py try/except wrap, the __init__.py torch.version.hip fallback, and
+  # the gpu_worker.py torch.cuda.init() call) are now landed directly on the
+  # opengfx1030/vllm-rdna fork at VLLM_COMMIT below. Both patch ARGs are
+  # empty. If a future vLLM release re-introduces one of these bugs upstream
+  # a new patches/v0.<N>.<M>.patch file can be added and the ARGs set, but
+  # the default is patchless.
+  dockerfile = "Dockerfile.vllm"
+  tags       = [
+    "docker.io/blivioniag/vllm-rdna:v0.28.0-extras",
+    "docker.io/blivioniag/vllm-rdna:v0.28.0-extras-rocm7.14.0",
+  ]
+  platforms  = ["linux/amd64"]
+  target     = "final"
+  args = {
+    BASE_IMAGE       = "docker.io/blivioniag/rocm-rdna:7.14.0"
+    VLLM_REPOSITORY  = "https://github.com/opengfx1030/vllm-rdna.git"
+    VLLM_REF         = "rdna_extras"
+    VLLM_COMMIT      = "3d6df9ed617a3ce728412dbfe433d400596745b8"
+    VLLM_VARIANT     = "extras-fork"
+    TORCH_BACKEND    = "rocm7.14"
+    PYTORCH_ROCM_ARCH = "gfx1030;gfx1100;gfx1101;gfx1150;gfx1151;gfx1200;gfx1201"
+    IMAGE_TAG        = "v0.28.0-extras-rocm7.14.0"
+    VLLM_PATCH_FILE  = ""
+    VLLM_FINAL_PATCH_FILE = ""
+  }
+}
+
 # ---------------------------------------------------------------------------
 # Groups
 # ---------------------------------------------------------------------------
@@ -183,6 +213,7 @@ group "all-vllm" {
     "vllm-0260-rocm714-extras",
     "vllm-0271-rocm714",
     "vllm-0271-rocm714-extras",
+    "vllm-0280-rocm714-extras",
   ]
 }
 
