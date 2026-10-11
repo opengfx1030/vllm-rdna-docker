@@ -22,6 +22,9 @@
 #   FLASH_ATTENTION_REF     FA branch/tag/commit to clone (default main)
 #   VLLM_PRETEND_VERSION    version for setuptools-scm (the shallow clone has no
 #                           tags); empty = whatever setuptools-scm derives
+#   RUNTIME_LD_LIBRARY_PATH LD_LIBRARY_PATH for the final image; empty keeps the
+#                           base value. ROCm wheel bases need the rocm_sdk libs
+#                           first, or two LLVM copies load (system + wheel)
 #   USE_SCCACHE             "1" wraps HIP compilation of the vLLM extension in
 #                           sccache (requires the base to have wrappers at
 #                           /opt/sccache-wrappers, i.e. built with USE_SCCACHE=1)
@@ -166,6 +169,13 @@ FROM builder AS final
 # ("hipBLASLt on gfx1030") and is likewise not disabled by default.
 ENV VLLM_ROCM_USE_AITER=0 \
     FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
+
+# vLLM's env_override.py loads libtorch_cpu.so before importing torch; with
+# /opt/rocm/lib first it pulls the system amdhip64/comgr/libLLVM, then torch's
+# rocm_sdk preloads the wheel copies and LLVM aborts ("registered more than
+# once"). Targets on ROCm wheel bases put the rocm_sdk directories first.
+ARG RUNTIME_LD_LIBRARY_PATH=
+ENV LD_LIBRARY_PATH=${RUNTIME_LD_LIBRARY_PATH:-${LD_LIBRARY_PATH}}
 
 ARG VLLM_REPOSITORY
 ARG VLLM_REF

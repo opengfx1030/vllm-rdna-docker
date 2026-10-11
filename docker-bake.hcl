@@ -219,6 +219,7 @@ target "vllm-0310-rocm714-extras" {
     VLLM_COMMIT      = "1dc3bac4cda3201a1b4fb345e044578e84a272cf"
     VLLM_VARIANT     = "extras-fork"
     VLLM_PRETEND_VERSION = "0.31.0+rdna"
+    RUNTIME_LD_LIBRARY_PATH = "/usr/local/lib/python3.12/dist-packages/_rocm_sdk_libraries/lib:/usr/local/lib/python3.12/dist-packages/_rocm_sdk_core/lib:/usr/local/lib/python3.12/dist-packages/_rocm_sdk_core/lib/llvm/lib:/opt/rocm/lib"
     TORCH_BACKEND    = "rocm7.14"
     PYTORCH_ROCM_ARCH = "gfx1030;gfx1100;gfx1101;gfx1150;gfx1151;gfx1200;gfx1201"
     IMAGE_TAG        = "v0.31.0-extras-rocm7.14.0"
