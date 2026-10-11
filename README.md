@@ -21,11 +21,54 @@ no config validator, no custom linter.
 | `vllm-0271-rocm720-extras` | `…/vllm-rdna:v0.27.1-extras` | fork, no commit pin (fill in when fork is tagged) |
 | `vllm-0271-rocm714-extras` | `…/vllm-rdna:v0.27.1-extras-rocm7.14.0` | same fork, ROCm 7.14.0 base |
 | `vllm-0280-rocm714-extras` | `…/vllm-rdna:v0.28.0-extras-rocm7.14.0` | fork @ `3d6df9ed6` (RDNA fixes + exl3 arch-guard widened on `rdna_extras`, no patches) |
+| `vllm-0310-rocm714-extras` | `…/vllm-rdna:v0.31.0-extras-rocm7.14.0` (also `v0.31.0-extras`) | fork `rdna_extras` @ `1dc3bac4c` = upstream v0.31.0 + RDNA port (PR #47) + INT4 PLE (PR #49), no patches |
 
 Groups: `all` (= `all-bases` + `all-vllm`), `all-bases`, `all-vllm`.
 
 The seven RDNA archs `gfx1030;gfx1100;gfx1101;gfx1150;gfx1151;gfx1200;gfx1201`
 are baked into every image via `PYTORCH_ROCM_ARCH`.
+
+## Running v0.31.0-extras (Qwen3.8 Flash-Next on 4× gfx1030)
+
+The fork's validated launcher is `tools/rdna/serve_rdna.sh RECIPE=flashnext-mtp2`
+(or `flashnext-mtp0`); the source tree, recipes, TunableOp rows and tuned MoE
+configs are in the image at `/src/vllm`. The container equivalent of the
+`flashnext-mtp2` recipe:
+
+```bash
+docker run --rm -it --network host --ipc host --shm-size 16g \
+  --device /dev/kfd --device /dev/dri --group-add video --group-add render \
+  --security-opt seccomp=unconfined \
+  -v /path/to/hf-cache:/root/.cache/huggingface \
+  -e HIP_VISIBLE_DEVICES=0,1,2,3 \
+  -e VLLM_WORKER_MULTIPROC_METHOD=spawn -e GPU_MAX_HW_QUEUES=2 \
+  -e VLLM_ROCM_USE_AITER=0 -e VLLM_ROCM_USE_AITER_MOE=0 \
+  -e VLLM_RDNA_FORCE_FP16=1 -e TORCH_BLAS_PREFER_HIPBLASLT=0 -e VLLM_BATCH_INVARIANT=0 \
+  -e VLLM_USE_RDNA2_FA=1 -e VLLM_FA_RDNA2_GQA_DECODE=1 -e VLLM_USE_V2_MODEL_RUNNER=1 \
+  -e VLLM_ROCM_MOE_PREFILL=0 -e VLLM_GDN_HIP_PREFILL=0 -e VLLM_RDNA_FUSED_SE=1 \
+  -e VLLM_RDNA_AR=1 -e VLLM_RDNA_AR_MAX_KB=64 -e VLLM_RDNA_AR_ONESHOT_KB=64 \
+  -e VLLM_TUNED_CONFIG_FOLDER=/src/vllm/tuned-moe \
+  -e PYTORCH_TUNABLEOP_ENABLED=1 -e PYTORCH_TUNABLEOP_TUNING=0 \
+  -e PYTORCH_TUNABLEOP_HIPBLASLT_ENABLED=0 \
+  -e PYTORCH_TUNABLEOP_FILENAME=/src/vllm/tunableop/rocm7.14-rocblas5.5/tunableop_results.csv \
+  -e HSA_FORCE_FINE_GRAIN_PCIE=1 -e HSA_ENABLE_SDMA=0 -e OMP_NUM_THREADS=4 \
+  docker.io/blivioniag/vllm-rdna:v0.31.0-extras \
+  serve wtdcode/Qwen3.8-Flash-Next-AWQ-W4A16 --served-model-name flash-next \
+  --host 0.0.0.0 --port 8000 --attention-backend RDNA_ATTN --tensor-parallel-size 4 \
+  --dtype float16 --block-size 1024 --max-model-len 262144 --max-num-seqs 8 \
+  --max-num-batched-tokens 2048 --kv-cache-memory-bytes 4026531840 \
+  --compilation-config '{"mode":3,"cudagraph_mode":"FULL_AND_PIECEWISE","cudagraph_capture_sizes":[3,6,12,24],"compile_ranges_endpoints":[]}' \
+  --speculative-config '{"method":"mtp","num_speculative_tokens":2,"use_local_argmax_reduction":true}' \
+  --enable-expert-parallel --enable-prefix-caching --mamba-cache-mode align \
+  --limit-mm-per-prompt '{"image":1}' --mm-processor-kwargs '{"max_pixels":1605632}'
+```
+
+Low host RAM: add `-v /path/to/ples_int4:/ples_int4 -e VLLM_PLE_QUANT_DIR=/ples_int4` (INT4 PLE table from `primitive-ai/Qwen3.8-Flash-Next-PLE-quant`, 30 GB pinned instead of 95 GB BF16).
+For MTP=0 drop `--speculative-config` and use `"cudagraph_capture_sizes":[1,2,4,8]`.
+Keep the 4 GPUs on one PCIe switch. The TunableOp rows are keyed to the
+rocBLAS build of the 7.14.0 base (`librocblas.so.5` sha256 `f30bb442e9b5`).
+Measured on 4× Radeon PRO V620 (MTP=2, greedy): 1k prompt prefill 2116 tok/s,
+decode 69 tok/s per request; 8 concurrent 1k requests 205 tok/s aggregate.
 
 ## Build locally
 
@@ -77,6 +120,7 @@ Uses stock `docker/setup-buildx-action`, `docker/login-action`,
 | `FLASH_ATTENTION_INSTALL` | `base` \| `vllm` \| `none` |
 | `FLASH_ATTENTION_REPO` | FA clone URL (default `Dao-AILab/flash-attention`) |
 | `FLASH_ATTENTION_REF` | FA branch/tag/commit to clone (default `main`) |
+| `VLLM_PRETEND_VERSION` | Version handed to setuptools-scm (the shallow clone has no tags); empty = derived |
 | `USE_SCCACHE` | `1` to wrap HIP compilation in sccache (base must be built with `USE_SCCACHE=1`) |
 | `VLLM_PATCH_FILE` | Path to a `.patch` file in `patches/` to apply after the vLLM clone (e.g. `patches/v0.26.0-rocm-platforms.patch`). Empty = no patch. |
 | `CONFIG_HASH` | Sha256 of the resolved config (informational label) |

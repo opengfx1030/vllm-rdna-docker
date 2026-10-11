@@ -26,6 +26,8 @@ on:
           - vllm-0271-rocm714
           - vllm-0271-rocm720-extras
           - vllm-0271-rocm714-extras
+          - vllm-0280-rocm714-extras
+          - vllm-0310-rocm714-extras
         default: all
       push:
         description: 'Push images to the registry (requires credentials)'

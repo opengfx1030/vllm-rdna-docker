@@ -20,6 +20,11 @@
 #   FLASH_ATTENTION_VERSION FA version pin (informational; REF drives the clone)
 #   FLASH_ATTENTION_REPO    FA clone URL (default Dao-AILab/flash-attention)
 #   FLASH_ATTENTION_REF     FA branch/tag/commit to clone (default main)
+#   VLLM_PRETEND_VERSION    version for setuptools-scm (the shallow clone has no
+#                           tags); empty = whatever setuptools-scm derives
+#   RUNTIME_LD_LIBRARY_PATH LD_LIBRARY_PATH for the final image; empty keeps the
+#                           base value. ROCm wheel bases need the rocm_sdk libs
+#                           first, or two LLVM copies load (system + wheel)
 #   USE_SCCACHE             "1" wraps HIP compilation of the vLLM extension in
 #                           sccache (requires the base to have wrappers at
 #                           /opt/sccache-wrappers, i.e. built with USE_SCCACHE=1)
@@ -40,6 +45,7 @@ ARG FLASH_ATTENTION_REPO=https://github.com/Dao-AILab/flash-attention
 ARG FLASH_ATTENTION_REF=main
 ARG USE_SCCACHE=
 ARG VLLM_PATCH_FILE=
+ARG VLLM_PRETEND_VERSION=
 
 # ---------------------------------------------------------------------------
 # Stage source: clone the pinned vLLM ref and verify the immutable commit.
@@ -84,6 +90,7 @@ ARG FLASH_ATTENTION_INSTALL
 ARG FLASH_ATTENTION_REPO
 ARG FLASH_ATTENTION_REF
 ARG USE_SCCACHE
+ARG VLLM_PRETEND_VERSION
 
 ENV VLLM_TARGET_DEVICE=rocm \
     VLLM_USE_PRECOMPILED=0 \
@@ -120,6 +127,9 @@ RUN if [ "${USE_SCCACHE}" = "1" ]; then \
         export HIP_CLANG_PATH=/opt/sccache-wrappers \
                CMAKE_C_COMPILER_LAUNCHER=sccache \
                CMAKE_CXX_COMPILER_LAUNCHER=sccache; \
+    fi \
+    && if [ -n "${VLLM_PRETEND_VERSION}" ]; then \
+        export SETUPTOOLS_SCM_PRETEND_VERSION="${VLLM_PRETEND_VERSION}"; \
     fi \
     && uv pip install --system setuptools_rust setuptools_scm \
     && uv pip install --system -e . \
@@ -159,6 +169,13 @@ FROM builder AS final
 # ("hipBLASLt on gfx1030") and is likewise not disabled by default.
 ENV VLLM_ROCM_USE_AITER=0 \
     FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
+
+# vLLM's env_override.py loads libtorch_cpu.so before importing torch; with
+# /opt/rocm/lib first it pulls the system amdhip64/comgr/libLLVM, then torch's
+# rocm_sdk preloads the wheel copies and LLVM aborts ("registered more than
+# once"). Targets on ROCm wheel bases put the rocm_sdk directories first.
+ARG RUNTIME_LD_LIBRARY_PATH=
+ENV LD_LIBRARY_PATH=${RUNTIME_LD_LIBRARY_PATH:-${LD_LIBRARY_PATH}}
 
 ARG VLLM_REPOSITORY
 ARG VLLM_REF

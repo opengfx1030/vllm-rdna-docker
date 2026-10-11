@@ -197,6 +197,37 @@ target "vllm-0280-rocm714-extras" {
   }
 }
 
+target "vllm-0310-rocm714-extras" {
+  # v0.31.0 extras build: opengfx1030/vllm-rdna `rdna_extras` = upstream
+  # v0.31.0 + the RDNA port (PR #47). Same ROCm 7.14.0 base as v0.28.0-extras
+  # (torch 2.12.0+rocm7.14.0, HIP 7.14.60850, Triton 3.7.1, Python 3.12 -- the
+  # stack the port was validated on). No patches: the fork carries its RDNA
+  # fixes itself. VLLM_PRETEND_VERSION gives the shallow clone a real version
+  # (setuptools-scm sees no tags there).
+  dockerfile = "Dockerfile.vllm"
+  tags       = [
+    "docker.io/blivioniag/vllm-rdna:v0.31.0-extras",
+    "docker.io/blivioniag/vllm-rdna:v0.31.0-extras-rocm7.14.0",
+  ]
+  platforms  = ["linux/amd64"]
+  target     = "final"
+  args = {
+    BASE_IMAGE       = "docker.io/blivioniag/rocm-rdna:7.14.0"
+    VLLM_REPOSITORY  = "https://github.com/opengfx1030/vllm-rdna.git"
+    VLLM_REF         = "rdna_extras"
+    # rdna_extras after merging PRs #47 (v0.31 port) and #49 (INT4 PLE).
+    VLLM_COMMIT      = "1dc3bac4cda3201a1b4fb345e044578e84a272cf"
+    VLLM_VARIANT     = "extras-fork"
+    VLLM_PRETEND_VERSION = "0.31.0+rdna"
+    RUNTIME_LD_LIBRARY_PATH = "/usr/local/lib/python3.12/dist-packages/_rocm_sdk_libraries/lib:/usr/local/lib/python3.12/dist-packages/_rocm_sdk_core/lib:/usr/local/lib/python3.12/dist-packages/_rocm_sdk_core/lib/llvm/lib:/opt/rocm/lib"
+    TORCH_BACKEND    = "rocm7.14"
+    PYTORCH_ROCM_ARCH = "gfx1030;gfx1100;gfx1101;gfx1150;gfx1151;gfx1200;gfx1201"
+    IMAGE_TAG        = "v0.31.0-extras-rocm7.14.0"
+    VLLM_PATCH_FILE  = ""
+    VLLM_FINAL_PATCH_FILE = ""
+  }
+}
+
 # ---------------------------------------------------------------------------
 # Groups
 # ---------------------------------------------------------------------------
@@ -214,6 +245,7 @@ group "all-vllm" {
     "vllm-0271-rocm714",
     "vllm-0271-rocm714-extras",
     "vllm-0280-rocm714-extras",
+    "vllm-0310-rocm714-extras",
   ]
 }
 
