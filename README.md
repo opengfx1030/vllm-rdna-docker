@@ -21,7 +21,7 @@ no config validator, no custom linter.
 | `vllm-0271-rocm720-extras` | `…/vllm-rdna:v0.27.1-extras` | fork, no commit pin (fill in when fork is tagged) |
 | `vllm-0271-rocm714-extras` | `…/vllm-rdna:v0.27.1-extras-rocm7.14.0` | same fork, ROCm 7.14.0 base |
 | `vllm-0280-rocm714-extras` | `…/vllm-rdna:v0.28.0-extras-rocm7.14.0` | fork @ `3d6df9ed6` (RDNA fixes + exl3 arch-guard widened on `rdna_extras`, no patches) |
-| `vllm-0310-rocm714-extras` | `…/vllm-rdna:v0.31.0-extras-rocm7.14.0` (also `v0.31.0-extras`) | fork `rdna_extras` @ `1dc3bac4c` = upstream v0.31.0 + RDNA port (PR #47) + INT4 PLE (PR #49), no patches |
+| `vllm-0310-rocm714-extras` | `…/vllm-rdna:v0.31.0-extras-rocm7.14.0` (also `v0.31.0-extras`) | fork `rdna_extras` @ `fbe84e941` = upstream v0.31.0 + RDNA port (PR #47) + INT4 PLE pinned (#49) / from disk (#52), no patches |
 
 Groups: `all` (= `all-bases` + `all-vllm`), `all-bases`, `all-vllm`.
 
@@ -63,7 +63,7 @@ docker run --rm -it --network host --ipc host --shm-size 16g \
   --limit-mm-per-prompt '{"image":1}' --mm-processor-kwargs '{"max_pixels":1605632}'
 ```
 
-Low host RAM: add `-v /path/to/ples_int4:/ples_int4 -e VLLM_PLE_QUANT_DIR=/ples_int4` (INT4 PLE table from `primitive-ai/Qwen3.8-Flash-Next-PLE-quant`, 30 GB pinned instead of 95 GB BF16).
+Low host RAM (INT4 PLE table from `primitive-ai/Qwen3.8-Flash-Next-PLE-quant`): add `-v /path/to/ples_int4:/ples_int4 -e VLLM_PLE_QUANT_DIR=/ples_int4` for the table in pinned RAM (30 GB instead of 95 GB BF16), plus `-e VLLM_PLE_CPU_OFFLOAD=1` to serve it memory-mapped from disk instead (page cache only; MTP2 ITL within 1-3 % of pinned).
 For MTP=0 drop `--speculative-config` and use `"cudagraph_capture_sizes":[1,2,4,8]`.
 Keep the 4 GPUs on one PCIe switch. The TunableOp rows are keyed to the
 rocBLAS build of the 7.14.0 base (`librocblas.so.5` sha256 `f30bb442e9b5`).
