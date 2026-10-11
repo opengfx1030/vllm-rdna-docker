@@ -21,7 +21,7 @@ no config validator, no custom linter.
 | `vllm-0271-rocm720-extras` | `…/vllm-rdna:v0.27.1-extras` | fork, no commit pin (fill in when fork is tagged) |
 | `vllm-0271-rocm714-extras` | `…/vllm-rdna:v0.27.1-extras-rocm7.14.0` | same fork, ROCm 7.14.0 base |
 | `vllm-0280-rocm714-extras` | `…/vllm-rdna:v0.28.0-extras-rocm7.14.0` | fork @ `3d6df9ed6` (RDNA fixes + exl3 arch-guard widened on `rdna_extras`, no patches) |
-| `vllm-0310-rocm714-extras` | `…/vllm-rdna:v0.31.0-extras-rocm7.14.0` (also `v0.31.0-extras`) | fork `rdna_extras` = upstream v0.31.0 + RDNA port (opengfx1030/vllm-rdna PR #47), no patches |
+| `vllm-0310-rocm714-extras` | `…/vllm-rdna:v0.31.0-extras-rocm7.14.0` (also `v0.31.0-extras`) | fork `rdna_extras` @ `7813953b6` = upstream v0.31.0 + RDNA port (opengfx1030/vllm-rdna PR #47), no patches |
 
 Groups: `all` (= `all-bases` + `all-vllm`), `all-bases`, `all-vllm`.
 

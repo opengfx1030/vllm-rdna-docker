@@ -215,8 +215,8 @@ target "vllm-0310-rocm714-extras" {
     BASE_IMAGE       = "docker.io/blivioniag/rocm-rdna:7.14.0"
     VLLM_REPOSITORY  = "https://github.com/opengfx1030/vllm-rdna.git"
     VLLM_REF         = "rdna_extras"
-    # Set to the rdna_extras merge commit of PR #47 before building.
-    VLLM_COMMIT      = "TODO_RDNA_EXTRAS_MERGE_COMMIT"
+    # rdna_extras after merging PR #47 (2026-10-11).
+    VLLM_COMMIT      = "7813953b6f1c7c111ea9080bed08c21d1d703206"
     VLLM_VARIANT     = "extras-fork"
     VLLM_PRETEND_VERSION = "0.31.0+rdna"
     TORCH_BACKEND    = "rocm7.14"
